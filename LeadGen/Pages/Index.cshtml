@@ -9,7 +9,10 @@
 </div>
 
 <div>
-    <button id="btnLogin" onclick="myFacebookLogin()" style="display:none;">Login with Facebook</button>
+    @*<button id="btnLogin" onclick="myFacebookLogin()" style="display:none;">Login with Facebook</button>*@
+    <fb:login-button id="btnLogin" config_id="216355074303224"
+                     onlogin="myFacebookLogin();" style="display:none;">
+    </fb:login-button>
     <span id="spanMessage" style="display:none;"></span>
     <ul id="list"></ul>
 </div>
@@ -18,7 +21,7 @@
     <script>
         window.fbAsyncInit = function () {
             FB.init({
-                appId: '149028068003675',
+                appId: '1379090702908676',
                 xfbml: true,
                 version: 'v16.0'
             });
