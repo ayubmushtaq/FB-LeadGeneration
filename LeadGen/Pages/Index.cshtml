@@ -10,15 +10,155 @@
 
 <div>
     @*<button id="btnLogin" onclick="myFacebookLogin()" style="display:none;">Login with Facebook</button>*@
-    <fb:login-button id="btnLogin" config_id="216355074303224"
-                     onlogin="myFacebookLogin();" style="display:none;">
+    @*    <fb:login-button id="btnLogin" config_id="216355074303224"
+    onlogin="myFacebookLogin();" style="display:none;">
+    </fb:login-button>*@
+    @*264099235951271*@
+    @*   <fb:login-button id="btnLogin" config_id="216355074303224"
+    onlogin="checkLoginState();">
     </fb:login-button>
     <span id="spanMessage" style="display:none;"></span>
+    <ul id="list"></ul>*@
+
+    <button onclick="myFacebookLogin()">Login with Facebook</button>
     <ul id="list"></ul>
 </div>
 
 @section scripts{
     <script>
+        window.fbAsyncInit = function () {
+            FB.init({
+                appId: '1379090702908676',
+                xfbml: true,
+                version: 'v16.0'
+            });
+        };
+
+        (function (d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) { return; }
+            js = d.createElement(s); js.id = id;
+            js.src = "https://connect.facebook.net/en_US/sdk.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk'));
+
+        function subscribeApp(page_id, page_access_token) {
+            console.log('Subscribing page to app! ' + page_id);
+            FB.api(
+                '/' + page_id + '/subscribed_apps',
+                'post',
+                { access_token: page_access_token, subscribed_fields: ['leadgen'] },
+                function (response) {
+                    console.log('Successfully subscribed page', response);
+                }
+            );
+        }
+
+        // Only works after `FB.init` is called
+        function myFacebookLogin() {
+            FB.login(function (response) {
+                console.log('Successfully logged in', response);
+                FB.api('/me/accounts', function (response) {
+                    console.log('Successfully retrieved pages', response);
+                    var pages = response.data;
+                    var ul = document.getElementById('list');
+                    for (var i = 0, len = pages.length; i < len; i++) {
+                        var page = pages[i];
+                        var li = document.createElement('li');
+                        var a = document.createElement('a');
+                        a.href = "#";
+                        a.onclick = subscribeApp.bind(this, page.id, page.access_token);
+                        a.innerHTML = page.name;
+                        li.appendChild(a);
+                        ul.appendChild(li);
+                    }
+                });
+            }, { scope: 'pages_show_list' });
+        }
+    </script>
+
+    @*    <script>
+        window.fbAsyncInit = function () {
+            FB.init({
+                appId: '1379090702908676',
+                cookie: true,
+                xfbml: true,
+                version: 'v16.0'
+            });
+
+            FB.AppEvents.logPageView();
+
+
+            FB.getLoginStatus(function (response) {
+                statusChangeCallback(response);
+            });
+
+        };
+
+        (function (d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) { return; }
+            js = d.createElement(s); js.id = id;
+            js.src = "https://connect.facebook.net/en_US/sdk.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk'));
+
+
+        function checkLoginState() {
+            FB.getLoginStatus(function (response) {
+                statusChangeCallback(response);
+            });
+        }
+
+        function statusChangeCallback(response){
+            if (response.status === 'connected') {
+                // user is already logged in
+                FB.api('/me', function (userResponse) {
+                    console.log("User is logged in with Facebook ID: " + response.authResponse.userID + " and name: " + userResponse.name);
+                    // display the user's name on the web page
+                    document.getElementById('spanMessage').innerHTML = userResponse.name + " connected.";
+                    document.getElementById('spanMessage').style.display = 'block';
+                    document.getElementById('btnLogin').style.display = 'none';
+                });
+                FB.api('/' + response.authResponse.userID  + '/accounts', function (response) {
+                    console.log('Successfully retrieved pages', response);
+                    var pages = response.data;
+                    var ul = document.getElementById('list');
+                    for (var i = 0, len = pages.length; i < len; i++) {
+                        var page = pages[i];
+                        var li = document.createElement('li');
+                        var a = document.createElement('a');
+                        a.href = "#";
+                        a.onclick = subscribeApp.bind(this, page.id, page.access_token);
+                        a.innerHTML = page.name;
+                        li.appendChild(a);
+                        ul.appendChild(li);
+                    }
+                });
+            } else {
+                // user is not logged in
+                console.log("User is not logged in to Facebook");
+                document.getElementById('spanMessage').style.display = 'none';
+                document.getElementById('btnLogin').style.display = 'block';
+            }
+        }
+        function subscribeApp(page_id, page_access_token) {
+            console.log('Subscribing page to app! ' + page_id);
+            FB.api(
+                '/' + page_id + '/subscribed_apps',
+                'post',
+                { access_token: page_access_token, subscribed_fields: ['leadgen'] },
+                function (response) {
+                    console.log('Successfully subscribed page', response);
+                    alert('Successfully subscribed page');
+                }
+            );
+        }
+    </script>*@
+
+
+
+    @* <script>
         window.fbAsyncInit = function () {
             FB.init({
                 appId: '1379090702908676',
@@ -33,8 +173,8 @@
                         console.log("User is logged in with Facebook ID: " + response.authResponse.userID + " and name: " + userResponse.name);
                         // display the user's name on the web page
                         document.getElementById('spanMessage').innerHTML = userResponse.name + " connected.";
-                         document.getElementById('spanMessage').style.display = 'block';
-                          document.getElementById('btnLogin').style.display = 'none';
+                        document.getElementById('spanMessage').style.display = 'block';
+                        document.getElementById('btnLogin').style.display = 'none';
                     });
                     FB.api('/me/accounts', function (response) {
                         console.log('Successfully retrieved pages', response);
@@ -54,8 +194,8 @@
                 } else {
                     // user is not logged in
                     console.log("User is not logged in to Facebook");
-                      document.getElementById('spanMessage').style.display = 'none';
-                          document.getElementById('btnLogin').style.display = 'block';
+                    document.getElementById('spanMessage').style.display = 'none';
+                    document.getElementById('btnLogin').style.display = 'block';
                 }
             });
         };
@@ -85,7 +225,7 @@
         function myFacebookLogin() {
             FB.login(function (response) {
                 console.log('Successfully logged in', response);
-               
+
                 FB.api('/me/accounts', function (response) {
                     console.log('Successfully retrieved pages', response);
                     var pages = response.data;
@@ -103,5 +243,5 @@
                 });
             }, { scope: 'pages_show_list' });
         }
-    </script>
+    </script>*@
 }
