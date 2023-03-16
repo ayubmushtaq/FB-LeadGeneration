@@ -20,18 +20,28 @@
     <span id="spanMessage" style="display:none;"></span>
     <ul id="list"></ul>*@
 
-    <button onclick="myFacebookLogin()">Login with Facebook</button>
-    <ul id="list"></ul>
+    <button id="btnLogin" onclick="myFacebookLogin()">Login with Facebook</button>
+    <button id="btnLogout" onclick="faceBookLogout()">Logout</button>
+    <span id="spanMessage" style="display:none;"></span>
+    <ul id="listPages"></ul>
 </div>
 
 @section scripts{
     <script>
         window.fbAsyncInit = function () {
             FB.init({
-                appId: '1379090702908676',
+                appId: '149028068003675',
                 xfbml: true,
                 version: 'v16.0'
             });
+        
+
+        FB.AppEvents.logPageView();
+
+
+        FB.getLoginStatus(function (response) {
+                checkLoginName(response);
+        });
         };
 
         (function (d, s, id) {
@@ -50,6 +60,7 @@
                 { access_token: page_access_token, subscribed_fields: ['leadgen'] },
                 function (response) {
                     console.log('Successfully subscribed page', response);
+                    alert('Successfully subscribed page');
                 }
             );
         }
@@ -58,22 +69,53 @@
         function myFacebookLogin() {
             FB.login(function (response) {
                 console.log('Successfully logged in', response);
-                FB.api('/me/accounts', function (response) {
-                    console.log('Successfully retrieved pages', response);
-                    var pages = response.data;
-                    var ul = document.getElementById('list');
-                    for (var i = 0, len = pages.length; i < len; i++) {
-                        var page = pages[i];
-                        var li = document.createElement('li');
-                        var a = document.createElement('a');
-                        a.href = "#";
-                        a.onclick = subscribeApp.bind(this, page.id, page.access_token);
-                        a.innerHTML = page.name;
-                        li.appendChild(a);
-                        ul.appendChild(li);
-                    }
+                checkLoginName(response);
+            }, { scope: 'pages_show_list,leads_retrieval,instagram_basic' });
+        }
+        function faceBookLogout() {
+            FB.logout(function (response) {
+                // user is now logged out
+                console.log('user is now logged out', response);
+                checkLoginName(response);
+            });
+        }
+        function subscribePages(){
+            FB.api('/me/accounts', function (response) {
+                console.log('Successfully retrieved pages', response);
+                var pages = response.data;
+                var ul = document.getElementById('listPages');
+                for (var i = 0, len = pages.length; i < len; i++) {
+                    var page = pages[i];
+                    var li = document.createElement('li');
+                    var a = document.createElement('a');
+                    a.href = "#";
+                    a.onclick = subscribeApp.bind(this, page.id, page.access_token);
+                    a.innerHTML = page.name;
+                    li.appendChild(a);
+                    ul.appendChild(li);
+                }
+            });
+        }
+        function checkLoginName(response) {
+            if (response.status === 'connected') {
+                // user is already logged in
+                FB.api('/me', function (userResponse) {
+                    console.log("User is logged in with Facebook ID: " + response.authResponse.userID + " and name: " + userResponse.name);
+                    // display the user's name on the web page
+                    document.getElementById('spanMessage').innerHTML = userResponse.name + " connected.";
+                    document.getElementById('spanMessage').style.display = 'block';
+                    document.getElementById('btnLogin').style.display = 'none';
+                    document.getElementById('btnLogout').style.display = 'block';
                 });
-            }, { scope: 'pages_show_list' });
+                subscribePages();
+            } else {
+                // user is not logged in
+                console.log("User is not logged in to Facebook");
+                document.getElementById('listPages').innerHTML = "";
+                document.getElementById('spanMessage').style.display = 'none';
+                document.getElementById('btnLogin').style.display = 'block';
+                document.getElementById('btnLogout').style.display = 'none';
+            }
         }
     </script>
 
