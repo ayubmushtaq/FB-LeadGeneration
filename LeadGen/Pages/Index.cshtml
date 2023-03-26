@@ -20,7 +20,7 @@
     <span id="spanMessage" style="display:none;"></span>
     <ul id="list"></ul>*@
 
-    <button id="btnLogin" onclick="myFacebookLogin()">Login with Facebook</button>
+    <button id="btnLogin" onclick="myFacebookLogin()">Login with Facebooka</button>
     <button id="btnLogout" onclick="faceBookLogout()">Logout</button>
     <span id="spanMessage" style="display:none;"></span>
     <ul id="listPages"></ul>
@@ -70,7 +70,7 @@
             FB.login(function (response) {
                 console.log('Successfully logged in', response);
                 checkLoginName(response);
-            }, { scope: 'pages_show_list,leads_retrieval,instagram_basic' });
+            }, { scope: 'pages_show_list,leads_retrieval,pages_manage_ads,pages_manage_metadata,pages_read_engagement' });
         }
         function faceBookLogout() {
             FB.logout(function (response) {
@@ -97,9 +97,11 @@
             });
         }
         function checkLoginName(response) {
+            console.log('checkLoginName-response', response);
             if (response.status === 'connected') {
                 // user is already logged in
                 FB.api('/me', function (userResponse) {
+                    console.log('checkLoginName-userResponse', userResponse);
                     console.log("User is logged in with Facebook ID: " + response.authResponse.userID + " and name: " + userResponse.name);
                     // display the user's name on the web page
                     document.getElementById('spanMessage').innerHTML = userResponse.name + " connected.";
