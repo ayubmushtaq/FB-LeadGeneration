@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Data.SqlClient;
@@ -13,7 +14,11 @@ namespace LeadGen.Controllers
     [ApiController]
     public class WebhooksController : ControllerBase
     {
-        private readonly string SUBSCRIPTION_VERIFICATION = "leadAdsAyubTest";
+        private readonly IConfiguration _configuration;
+        public WebhooksController(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
         [HttpGet]
         public IActionResult VerificationRequest( // Creating an Endpoint
             [FromQuery(Name = "hub.mode")] string mode = "", // This value will always be set to subscribe.
@@ -21,14 +26,13 @@ namespace LeadGen.Controllers
             [FromQuery(Name = "hub.verify_token")] string verifyToken = "" // A string that that we grab from the Verify Token field in your app's App Dashboard. 
             )
         {
-            if (verifyToken.Equals(SUBSCRIPTION_VERIFICATION))
+            if (verifyToken.Equals(_configuration.GetValue<string>("FB_app_settings:app_subscription_verification")))
             {
-                int result = System.Int32.Parse(challenge); //An int you must pass back to us.
+                int result = int.Parse(challenge); //An int you must pass back to us.
                 return Ok
                 (
                     result //challenge
                 );
-
             }
             else
             {
@@ -76,7 +80,7 @@ namespace LeadGen.Controllers
                 //var adgroup_id = value.GetProperty("adgroup_id");
                 //string adgroup_idString = System.Text.Json.JsonSerializer.Serialize(adgroup_id);
 
-                string accessToken = "EAACHik0OD1sBALTU6dqQT76BZBcmxFf5YEz0O3eeXGZCtBdcrdZBsSQuLrGNsvhihb49ZAycyfMH3yb84843L29rTvXZAguhiH6l38ZB89KaZAwF3mMZBsAbZAfYDMfmQGZArILx79ZBj9HoZAmMfak2CT50vyBiTLpBAP5GFIQTQjsoY9HtAogM6oAZADjiWHNdZCWYZArqLelqzi0JmZBJfHmkxwEa";
+                string accessToken = _configuration.GetValue<string>("FB_app_settings:app_access_token");
                 var leadUrl = $"https://graph.facebook.com/v16.0/{leadgen_id}?access_token={accessToken}";
                 var formUrl = $"https://graph.facebook.com/v16.0/{form_id}?access_token={accessToken}";
 

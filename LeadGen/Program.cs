@@ -4,6 +4,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
+builder.Services.AddControllers().AddNewtonsoftJson();
 //builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddCors(options =>
@@ -40,5 +41,10 @@ app.UseAuthorization();
 app.MapRazorPages();
 
 app.MapControllers();
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "api/{controller}/{id}");
+
 
 app.Run();

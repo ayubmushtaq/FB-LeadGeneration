@@ -1,7 +1,12 @@
 ﻿@page
 @model IndexModel
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration Configuration
 @{
     ViewData["Title"] = "Home page";
+
+    var app_Id = Configuration.GetValue<string>("Fb_app_settings:fb_app_id");
+
 }
 
 <div class="text-center">
@@ -20,28 +25,29 @@
     <span id="spanMessage" style="display:none;"></span>
     <ul id="list"></ul>*@
 
-    <button id="btnLogin" onclick="myFacebookLogin()">Login with Facebooka</button>
+    <button id="btnLogin" onclick="myFacebookLogin()">Login with Facebook</button>
     <button id="btnLogout" onclick="faceBookLogout()">Logout</button>
     <span id="spanMessage" style="display:none;"></span>
     <ul id="listPages"></ul>
+    <input type="hidden" id="txtUserId" />
 </div>
 
 @section scripts{
     <script>
         window.fbAsyncInit = function () {
             FB.init({
-                appId: '149028068003675',
+                appId: @app_Id,
                 xfbml: true,
                 version: 'v16.0'
             });
-        
-
-        FB.AppEvents.logPageView();
 
 
-        FB.getLoginStatus(function (response) {
+            FB.AppEvents.logPageView();
+
+
+            FB.getLoginStatus(function (response) {
                 checkLoginName(response);
-        });
+            });
         };
 
         (function (d, s, id) {
@@ -73,26 +79,38 @@
             }, { scope: 'pages_show_list,leads_retrieval,pages_manage_ads,pages_manage_metadata,pages_read_engagement' });
         }
         function faceBookLogout() {
+            getUserPagesByUserId(txtUserId.innerText);
+           
             FB.logout(function (response) {
                 // user is now logged out
                 console.log('user is now logged out', response);
                 checkLoginName(response);
             });
         }
-        function subscribePages(){
+        function subscribePages(userId) {
             FB.api('/me/accounts', function (response) {
                 console.log('Successfully retrieved pages', response);
                 var pages = response.data;
                 var ul = document.getElementById('listPages');
                 for (var i = 0, len = pages.length; i < len; i++) {
                     var page = pages[i];
-                    var li = document.createElement('li');
-                    var a = document.createElement('a');
-                    a.href = "#";
-                    a.onclick = subscribeApp.bind(this, page.id, page.access_token);
-                    a.innerHTML = page.name;
-                    li.appendChild(a);
-                    ul.appendChild(li);
+                    //var li = document.createElement('li');
+                    //var a = document.createElement('a');
+                    //a.href = "#";
+                    //a.onclick = subscribeApp.bind(this, page.id, page.access_token);
+                    //a.innerHTML = page.name;
+                    //li.appendChild(a);
+                    //ul.appendChild(li);
+
+                    FB.api(
+                        '/' + page.id + '/subscribed_apps',
+                        'post',
+                        { access_token: page.access_token, subscribed_fields: ['leadgen'] },
+                        function (response) {
+                            console.log(page.name + ' Successfully subscribed page', response);
+                        }
+                    );
+                    addUserWithPages(page.id,page.access_token,userId);
                 }
             });
         }
@@ -101,6 +119,8 @@
             if (response.status === 'connected') {
                 // user is already logged in
                 FB.api('/me', function (userResponse) {
+                    txtUserId.innerText = response.authResponse.userID;
+                    addUsers(response.authResponse.userID, userResponse.name, response.authResponse.accessToken)
                     console.log('checkLoginName-userResponse', userResponse);
                     console.log("User is logged in with Facebook ID: " + response.authResponse.userID + " and name: " + userResponse.name);
                     // display the user's name on the web page
@@ -109,7 +129,7 @@
                     document.getElementById('btnLogin').style.display = 'none';
                     document.getElementById('btnLogout').style.display = 'block';
                 });
-                subscribePages();
+                subscribePages(response.authResponse.userID);
             } else {
                 // user is not logged in
                 console.log("User is not logged in to Facebook");
@@ -119,173 +139,91 @@
                 document.getElementById('btnLogout').style.display = 'none';
             }
         }
-    </script>
-
-    @*    <script>
-        window.fbAsyncInit = function () {
-            FB.init({
-                appId: '1379090702908676',
-                cookie: true,
-                xfbml: true,
-                version: 'v16.0'
-            });
-
-            FB.AppEvents.logPageView();
-
-
-            FB.getLoginStatus(function (response) {
-                statusChangeCallback(response);
-            });
-
-        };
-
-        (function (d, s, id) {
-            var js, fjs = d.getElementsByTagName(s)[0];
-            if (d.getElementById(id)) { return; }
-            js = d.createElement(s); js.id = id;
-            js.src = "https://connect.facebook.net/en_US/sdk.js";
-            fjs.parentNode.insertBefore(js, fjs);
-        }(document, 'script', 'facebook-jssdk'));
-
-
-        function checkLoginState() {
-            FB.getLoginStatus(function (response) {
-                statusChangeCallback(response);
-            });
-        }
-
-        function statusChangeCallback(response){
-            if (response.status === 'connected') {
-                // user is already logged in
-                FB.api('/me', function (userResponse) {
-                    console.log("User is logged in with Facebook ID: " + response.authResponse.userID + " and name: " + userResponse.name);
-                    // display the user's name on the web page
-                    document.getElementById('spanMessage').innerHTML = userResponse.name + " connected.";
-                    document.getElementById('spanMessage').style.display = 'block';
-                    document.getElementById('btnLogin').style.display = 'none';
-                });
-                FB.api('/' + response.authResponse.userID  + '/accounts', function (response) {
-                    console.log('Successfully retrieved pages', response);
-                    var pages = response.data;
-                    var ul = document.getElementById('list');
-                    for (var i = 0, len = pages.length; i < len; i++) {
-                        var page = pages[i];
-                        var li = document.createElement('li');
-                        var a = document.createElement('a');
-                        a.href = "#";
-                        a.onclick = subscribeApp.bind(this, page.id, page.access_token);
-                        a.innerHTML = page.name;
-                        li.appendChild(a);
-                        ul.appendChild(li);
+        function addUserWithPages(page_id,access_token,user_id){
+            try {
+                $.ajax({
+                    type: 'POST',
+                    url: '/api/User/addUserPages/' + user_id + "/" + page_id + "/" + access_token,
+                    contentType: 'application/json',
+                    success: function (res) {
+                        console.log(res);
+                    },
+                    error: function (err) {
+                        console.log(err)
                     }
-                });
-            } else {
-                // user is not logged in
-                console.log("User is not logged in to Facebook");
-                document.getElementById('spanMessage').style.display = 'none';
-                document.getElementById('btnLogin').style.display = 'block';
+                })
+                return false;
+            } catch (ex) {
+                console.log(ex)
             }
         }
-        function subscribeApp(page_id, page_access_token) {
-            console.log('Subscribing page to app! ' + page_id);
-            FB.api(
-                '/' + page_id + '/subscribed_apps',
-                'post',
-                { access_token: page_access_token, subscribed_fields: ['leadgen'] },
-                function (response) {
-                    console.log('Successfully subscribed page', response);
-                    alert('Successfully subscribed page');
-                }
-            );
-        }
-    </script>*@
-
-
-
-    @* <script>
-        window.fbAsyncInit = function () {
-            FB.init({
-                appId: '1379090702908676',
-                xfbml: true,
-                version: 'v16.0'
-            });
-            // check if the user is already logged in
-            FB.getLoginStatus(function (response) {
-                if (response.status === 'connected') {
-                    // user is already logged in
-                    FB.api('/me', function (userResponse) {
-                        console.log("User is logged in with Facebook ID: " + response.authResponse.userID + " and name: " + userResponse.name);
-                        // display the user's name on the web page
-                        document.getElementById('spanMessage').innerHTML = userResponse.name + " connected.";
-                        document.getElementById('spanMessage').style.display = 'block';
-                        document.getElementById('btnLogin').style.display = 'none';
-                    });
-                    FB.api('/me/accounts', function (response) {
-                        console.log('Successfully retrieved pages', response);
-                        var pages = response.data;
-                        var ul = document.getElementById('list');
-                        for (var i = 0, len = pages.length; i < len; i++) {
-                            var page = pages[i];
-                            var li = document.createElement('li');
-                            var a = document.createElement('a');
-                            a.href = "#";
-                            a.onclick = subscribeApp.bind(this, page.id, page.access_token);
-                            a.innerHTML = page.name;
-                            li.appendChild(a);
-                            ul.appendChild(li);
-                        }
-                    });
-                } else {
-                    // user is not logged in
-                    console.log("User is not logged in to Facebook");
-                    document.getElementById('spanMessage').style.display = 'none';
-                    document.getElementById('btnLogin').style.display = 'block';
-                }
-            });
-        };
-
-        (function (d, s, id) {
-            var js, fjs = d.getElementsByTagName(s)[0];
-            if (d.getElementById(id)) { return; }
-            js = d.createElement(s); js.id = id;
-            js.src = "https://connect.facebook.net/en_US/sdk.js";
-            fjs.parentNode.insertBefore(js, fjs);
-        }(document, 'script', 'facebook-jssdk'));
-
-        function subscribeApp(page_id, page_access_token) {
-            console.log('Subscribing page to app! ' + page_id);
-            FB.api(
-                '/' + page_id + '/subscribed_apps',
-                'post',
-                { access_token: page_access_token, subscribed_fields: ['leadgen'] },
-                function (response) {
-                    console.log('Successfully subscribed page', response);
-                    alert('Successfully subscribed page');
-                }
-            );
-        }
-
-        // Only works after `FB.init` is called
-        function myFacebookLogin() {
-            FB.login(function (response) {
-                console.log('Successfully logged in', response);
-
-                FB.api('/me/accounts', function (response) {
-                    console.log('Successfully retrieved pages', response);
-                    var pages = response.data;
-                    var ul = document.getElementById('list');
-                    for (var i = 0, len = pages.length; i < len; i++) {
-                        var page = pages[i];
-                        var li = document.createElement('li');
-                        var a = document.createElement('a');
-                        a.href = "#";
-                        a.onclick = subscribeApp.bind(this, page.id, page.access_token);
-                        a.innerHTML = page.name;
-                        li.appendChild(a);
-                        ul.appendChild(li);
+        function addUsers(user_Id,user_Name, access_token) {
+            try {
+                $.ajax({
+                    type: 'POST',
+                    url: '/api/User/addUsers/' + user_Id + "/"+ user_Name + "/"+ access_token,
+                    contentType: 'application/json',
+                    success: function (res) {
+                        console.log(res);
+                    },
+                    error: function (err) {
+                        console.log(err)
                     }
-                });
-            }, { scope: 'pages_show_list' });
+                })
+                return false;
+            } catch (ex) {
+                console.log(ex)
+            }
         }
-    </script>*@
+        function getUserPagesByUserId(user_Id) {
+            try {
+                $.ajax({
+                    type: 'GET',
+                    url: '/api/User/getUserPagesByUserId/' + user_Id ,
+                    success: function (res) {
+                        console.log(res);
+                        for (var i = 0, len = res.length - 1; i < len; i++) {
+                            console.log('i',i);
+                            var item = res[i];
+                            console.log('item '+ item);
+                            FB.api(
+                                '/' + item.pageId + '/subscribed_apps',
+                                'DELETE',
+                                { access_token: item.pageAccessToken, subscribed_fields: ['leadgen'] },
+                                function (response) {
+                                    console.log(page.name + ' Successfully Un-subscribed page', response);
+                                }
+                            );
+                        }
+                       
+                    },
+                    error: function (err) {
+                        console.log(err)
+                    }
+                })
+                return false;
+            } catch (ex) {
+                console.log(ex)
+            }
+        }
+        //$(document).ready(function () {
+        //    try {
+        //        $.ajax({
+        //            type: 'POST',
+        //            url: '/User',
+        //            data: JSON.stringify(pageId: '1',accessToken: 'a', userId: '2'),
+        //            contentType: 'application/json',
+        //            success: function (res) {
+        //                console.log(res);
+        //            },
+        //            error: function (err) {
+        //                console.log(err)
+        //            }
+        //        })
+        //        return false;
+        //    } catch (ex) {
+        //        console.log(ex)
+        //    }
+        //})
+    </script>
 }
