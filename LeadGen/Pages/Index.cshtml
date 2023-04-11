@@ -6,6 +6,7 @@
     ViewData["Title"] = "Home page";
 
     var app_Id = Configuration.GetValue<string>("Fb_app_settings:fb_app_id");
+    var app_access_token = Configuration.GetValue<string>("Fb_app_settings:app_access_token");
 
 }
 
@@ -185,11 +186,11 @@
                         for (var i = 0, len = res.length - 1; i < len; i++) {
                             console.log('i',i);
                             var item = res[i];
-                            console.log('item '+ item);
+                            console.log('item.pageId ' + item.pageId);
                             FB.api(
                                 '/' + item.pageId + '/subscribed_apps',
                                 'DELETE',
-                                { access_token: item.pageAccessToken, subscribed_fields: ['leadgen'] },
+                                { access_token: @app_access_token, subscribed_fields: ['leadgen'] },
                                 function (response) {
                                     console.log(page.name + ' Successfully Un-subscribed page', response);
                                 }
