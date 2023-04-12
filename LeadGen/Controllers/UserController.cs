@@ -53,8 +53,8 @@ namespace LeadGen.Controllers
             return Ok();
         }
         [HttpPost]
-        [Route("addUserPages/{userId}/{pageId}/{accessToken}")]
-        public async Task<IActionResult> addUserPages(string userId, string pageId, string accessToken)
+        [Route("addUserPages/{userId}/{pageId}/{pageName}/{accessToken}")]
+        public async Task<IActionResult> addUserPages(string userId, string pageId, string pageName, string accessToken)
         {
             string connectionString = _configuration.GetValue<string>("ConnectionStrings:DefaultConnection");
             using (SqlConnection connection = new(connectionString))
@@ -66,6 +66,7 @@ namespace LeadGen.Controllers
                 command.Parameters.AddWithValue("@UserId", userId);
                 command.Parameters.AddWithValue("@PageId", pageId);
                 command.Parameters.AddWithValue("@AccessToken", accessToken);
+                command.Parameters.AddWithValue("@PageName", pageName);
                 connection.Open();
                 _ = command.ExecuteNonQuery();
                 connection.Close();

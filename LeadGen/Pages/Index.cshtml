@@ -7,7 +7,7 @@
 
     var app_Id = Configuration.GetValue<string>("Fb_app_settings:fb_app_id");
     var app_access_token = Configuration.GetValue<string>("Fb_app_settings:app_access_token");
-
+    ViewData["app_access_token"] = Configuration.GetValue<string>("Fb_app_settings:app_access_token");
 }
 
 <div class="text-center">
@@ -26,8 +26,8 @@
     <span id="spanMessage" style="display:none;"></span>
     <ul id="list"></ul>*@
 
-    <button id="btnLogin" onclick="myFacebookLogin()">Login with Facebook</button>
-    <button id="btnLogout" onclick="faceBookLogout()">Logout</button>
+    <button id="btnLogin" onclick="myFacebookLogin()">Subscribe</button>
+    <button id="btnLogout" onclick="faceBookLogout()">Unsubscribe</button>
     <span id="spanMessage" style="display:none;"></span>
     <ul id="listPages"></ul>
     <input type="hidden" id="txtUserId" />
@@ -103,15 +103,8 @@
                     //li.appendChild(a);
                     //ul.appendChild(li);
 
-                    FB.api(
-                        '/' + page.id + '/subscribed_apps',
-                        'post',
-                        { access_token: page.access_token, subscribed_fields: ['leadgen'] },
-                        function (response) {
-                            console.log(page.name + ' Successfully subscribed page', response);
-                        }
-                    );
-                    addUserWithPages(page.id,page.access_token,userId);
+              
+                    addUserWithPages(page.id,page.access_token,userId,page.name);
                 }
             });
         }
@@ -140,14 +133,22 @@
                 document.getElementById('btnLogout').style.display = 'none';
             }
         }
-        function addUserWithPages(page_id,access_token,user_id){
+        function addUserWithPages(page_id,access_token,user_id,page_name){
             try {
                 $.ajax({
                     type: 'POST',
-                    url: '/api/User/addUserPages/' + user_id + "/" + page_id + "/" + access_token,
+                    url: '/api/User/addUserPages/' + user_id + "/" + page_id + "/" + page_name + "/" + access_token,
                     contentType: 'application/json',
                     success: function (res) {
                         console.log(res);
+                        FB.api(
+                            '/' + page_id + '/subscribed_apps',
+                            'post',
+                            { access_token: access_token, subscribed_fields: ['leadgen'] },
+                            function (response) {
+                                console.log(page_name + ' Successfully subscribed page', response);
+                            }
+                        );
                     },
                     error: function (err) {
                         console.log(err)
@@ -177,26 +178,27 @@
             }
         }
         function getUserPagesByUserId(user_Id) {
+            var app_access_token = '@app_access_token';
+            console.log(app_access_token);
             try {
                 $.ajax({
                     type: 'GET',
                     url: '/api/User/getUserPagesByUserId/' + user_Id ,
                     success: function (res) {
                         console.log(res);
-                        for (var i = 0, len = res.length - 1; i < len; i++) {
+                        for (var i = 0, len = res.length; i < len; i++) {
                             console.log('i',i);
                             var item = res[i];
                             console.log('item.pageId ' + item.pageId);
                             FB.api(
                                 '/' + item.pageId + '/subscribed_apps',
                                 'DELETE',
-                                { access_token: @app_access_token, subscribed_fields: ['leadgen'] },
+                                { access_token: app_access_token, subscribed_fields: ['leadgen'] },
                                 function (response) {
-                                    console.log(page.name + ' Successfully Un-subscribed page', response);
+                                    console.log(item.pageName + ' Successfully Un-subscribed page', response);
                                 }
                             );
                         }
-                       
                     },
                     error: function (err) {
                         console.log(err)
@@ -207,24 +209,5 @@
                 console.log(ex)
             }
         }
-        //$(document).ready(function () {
-        //    try {
-        //        $.ajax({
-        //            type: 'POST',
-        //            url: '/User',
-        //            data: JSON.stringify(pageId: '1',accessToken: 'a', userId: '2'),
-        //            contentType: 'application/json',
-        //            success: function (res) {
-        //                console.log(res);
-        //            },
-        //            error: function (err) {
-        //                console.log(err)
-        //            }
-        //        })
-        //        return false;
-        //    } catch (ex) {
-        //        console.log(ex)
-        //    }
-        //})
     </script>
 }
