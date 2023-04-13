@@ -7,6 +7,9 @@ using Newtonsoft.Json.Linq;
 using System.Data.SqlClient;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using System.Runtime.CompilerServices;
+using System.Text.Json.Nodes;
 
 namespace LeadGen.Controllers
 {
@@ -28,11 +31,12 @@ namespace LeadGen.Controllers
         {
             if (verifyToken.Equals(_configuration.GetValue<string>("FB_app_settings:app_subscription_verification")))
             {
-                int result = int.Parse(challenge); //An int you must pass back to us.
+                int result = System.Int32.Parse(challenge); //An int you must pass back to us.
                 return Ok
                 (
                     result //challenge
                 );
+
             }
             else
             {
@@ -48,41 +52,73 @@ namespace LeadGen.Controllers
 
         // POST api/webhooks
         [HttpPost]
-        public async Task<IActionResult> FaceBookAdsAsync([FromBody] JsonElement body)
+        public async Task<IActionResult> FaceBookAdsAsync([FromBody] Rootobject body)
         {
+            string connectionString = _configuration.GetValue<string>("ConnectionStrings:DefaultConnection");
             try
             {
-                var encodedUrl = Request.GetEncodedUrl();
-                string json = System.Text.Json.JsonSerializer.Serialize(body);
+                //var encodedUrl = Request.GetEncodedUrl();
+                //string json = System.Text.Json.JsonSerializer.Serialize(body);
 
-                var entry = body.GetProperty("entry");
-                string entryString = System.Text.Json.JsonSerializer.Serialize(entry);
+                //var entry = body.GetProperty("entry");
+                //string entryString = System.Text.Json.JsonSerializer.Serialize(entry);
 
-                var changes = entry[0].GetProperty("changes");
-                string changesString = System.Text.Json.JsonSerializer.Serialize(changes);
+                //var changes = entry[0].GetProperty("changes");
+                //string changesString = System.Text.Json.JsonSerializer.Serialize(changes);
 
-                var value = changes[0].GetProperty("value");
-                string valueString = System.Text.Json.JsonSerializer.Serialize(value);
+                //var value = changes[0].GetProperty("value");
+                //string valueString = System.Text.Json.JsonSerializer.Serialize(value);
 
-                //var ad_id = value.GetProperty("ad_id");
-                //string ad_idString = System.Text.Json.JsonSerializer.Serialize(ad_id);
 
-                var form_id = value.GetProperty("form_id");
-                
-                string form_idString = System.Text.Json.JsonSerializer.Serialize(form_id);
+                //string ad_idString = "";
 
-                var leadgen_id = value.GetProperty("leadgen_id");
-                string leadgen_idString = System.Text.Json.JsonSerializer.Serialize(leadgen_id);
+                //if (value.ToString().Contains("ad_id") == true)
+                //{
+                //    var ad_id = value.GetProperty("ad_id");
+                //    ad_idString = System.Text.Json.JsonSerializer.Serialize(ad_id);
+                //    ad_idString = ad_id.ToString();
+                //}
 
-                var page_id = value.GetProperty("page_id");
-                string page_idString = System.Text.Json.JsonSerializer.Serialize(page_id);
+                //var form_id = value.GetProperty("form_id");
 
-                //var adgroup_id = value.GetProperty("adgroup_id");
-                //string adgroup_idString = System.Text.Json.JsonSerializer.Serialize(adgroup_id);
+                //string form_idString = System.Text.Json.JsonSerializer.Serialize(form_id);
 
+                //var leadgen_id = value.GetProperty("leadgen_id");
+                //string leadgen_idString = System.Text.Json.JsonSerializer.Serialize(leadgen_id);
+
+                //var page_id = value.GetProperty("page_id");
+                //string page_idString = System.Text.Json.JsonSerializer.Serialize(page_id);
+
+                //string adgroup_idString = "";
+
+                //if (value.ToString().Contains("adgroup_id") == true)
+                //{
+                //    var adgroup_id = value.GetProperty("adgroup_id");
+                //    adgroup_idString = System.Text.Json.JsonSerializer.Serialize(adgroup_id);
+                //    adgroup_idString = adgroup_id.ToString();
+                //}
+
+                // Insert the lead data log into the SQL database
+                // 
+
+                var jsonObj = JsonConvert.SerializeObject(body);
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    string query = "INSERT INTO LeadLog (WebHooksJSON, AD_ID, Form_ID, LeadGen_ID, Page_ID, AD_Group_ID) VALUES (@WebHooksJSON, @AD_ID, @Form_ID, @LeadGen_ID, @Page_ID, @AD_Group_ID)";
+                    SqlCommand command = new SqlCommand(query, connection);
+                    command.Parameters.AddWithValue("@WebHooksJSON", jsonObj);
+                    command.Parameters.AddWithValue("@AD_ID", (body.entry[0].changes[0].value.ad_id == null ? "" : body.entry[0].changes[0].value.ad_id));
+                    command.Parameters.AddWithValue("@Form_ID", body.entry[0].changes[0].value.form_id);
+                    command.Parameters.AddWithValue("@LeadGen_ID", body.entry[0].changes[0].value.leadgen_id);
+                    command.Parameters.AddWithValue("@Page_ID", body.entry[0].changes[0].value.page_id);
+                    command.Parameters.AddWithValue("@AD_Group_ID", (body.entry[0].changes[0].value.adgroup_id == null ? "" : body.entry[0].changes[0].value.adgroup_id));
+                    connection.Open();
+                    int result = command.ExecuteNonQuery();
+                    connection.Close();
+                }
                 string accessToken = _configuration.GetValue<string>("FB_app_settings:app_access_token");
-                var leadUrl = $"https://graph.facebook.com/v16.0/{leadgen_id}?access_token={accessToken}";
-                var formUrl = $"https://graph.facebook.com/v16.0/{form_id}?access_token={accessToken}";
+                var leadUrl = $"https://graph.facebook.com/v16.0/{body.entry[0].changes[0].value.leadgen_id}?access_token={accessToken}";
+                var formUrl = $"https://graph.facebook.com/v16.0/{body.entry[0].changes[0].value.form_id}?access_token={accessToken}";
 
                 using (HttpClient httpClient = new HttpClient())
                 {
@@ -108,6 +144,7 @@ namespace LeadGen.Controllers
                                         var fieldsCount = jsonObjFields.FieldData.Count();
                                         var nameFieldValue = "";
                                         var emailFieldValue = "";
+                                        var phoneFieldValue = "";
                                         var otherFieldValue = "";
                                         foreach (var item in jsonObjFields.FieldData)
                                         {
@@ -119,23 +156,34 @@ namespace LeadGen.Controllers
                                             {
                                                 emailFieldValue = item.Values.FirstOrDefault();
                                             }
+                                            else if (item.Name == "phone_number")
+                                            {
+                                                phoneFieldValue = item.Values.FirstOrDefault();
+                                            }
                                             else
                                             {
                                                 otherFieldValue += (otherFieldValue == "" ? "{" : ",") + string.Concat("'", item.Name, "':'", item.Values.FirstOrDefault(), "'");
                                             }
                                         }
-                                        otherFieldValue += "}";
+                                        if (otherFieldValue != "")
+                                        {
+                                            otherFieldValue += "}";
+                                        }
+
                                         // Insert the lead data into the SQL database
-                                        string connectionString = "Server = tcp:externaldb.database.windows.net,1433;Initial Catalog=external; Persist Security Info=False; User ID=extuser; Password=TestStagDB123!; MultipleActiveResultSets=False; Encrypt=True; TrustServerCertificate=False; Connection Timeout=30;";
+
                                         using (SqlConnection connection = new SqlConnection(connectionString))
                                         {
                                             string query = "INSERT INTO Leads (LeadGenId, FormId, PageId, Name, Email, OtherColumn, CreatedOn) VALUES (@LeadGenId, @FormId, @PageId, @Name, @Email, @OtherColumn, @CreatedOn)";
                                             SqlCommand command = new SqlCommand(query, connection);
-                                            command.Parameters.AddWithValue("@LeadGenId", leadgen_id.ToString());
-                                            command.Parameters.AddWithValue("@FormId", form_id.ToString());
-                                            command.Parameters.AddWithValue("@PageId", page_id.ToString());
+                                            command.Parameters.AddWithValue("@LeadGenId", body.entry[0].changes[0].value.leadgen_id);
+                                            command.Parameters.AddWithValue("@FormId", body.entry[0].changes[0].value.form_id);
+                                            command.Parameters.AddWithValue("@PageId", body.entry[0].changes[0].value.page_id);
                                             command.Parameters.AddWithValue("@Name", nameFieldValue);
                                             command.Parameters.AddWithValue("@Email", emailFieldValue);
+                                            command.Parameters.AddWithValue("@Phone", phoneFieldValue);
+                                            command.Parameters.AddWithValue("@Ad_Id", (body.entry[0].changes[0].value.ad_id == null ? "" : body.entry[0].changes[0].value.ad_id));
+                                            command.Parameters.AddWithValue("@Ad_Group_Id", (body.entry[0].changes[0].value.adgroup_id == null ? "" : body.entry[0].changes[0].value.adgroup_id));
                                             command.Parameters.AddWithValue("@OtherColumn", otherFieldValue);
                                             command.Parameters.AddWithValue("@CreatedOn", DateTime.Now);
                                             connection.Open();
@@ -157,19 +205,7 @@ namespace LeadGen.Controllers
                     }
                 }
 
-                return Ok
-                (
-                    new string[] {
-                    "POST webhooks",
-                    "public IActionResult YouGotANewLead([FromBody] string content)",
-                    "encoded url: " + encodedUrl,
-                    "this is what we received in the body: " + json,
-                    "entry: " + entryString,
-                    "changes: " + changesString,
-                    "value: " + valueString,
-                    "leadgen_id: " + leadgen_idString
-                    }
-                );
+                return Ok();
             }
             catch (Exception ex)
             {
@@ -204,15 +240,34 @@ public class LeadFormData
     [JsonProperty("id")]
     public string Id { get; set; }
 
-    [JsonProperty("leadgen_export_csv_url")]
-    public string CsvExportUrl { get; set; }
-
-    [JsonProperty("locale")]
-    public string Locale { get; set; }
-
     [JsonProperty("name")]
     public string Name { get; set; }
+}
+public class Rootobject
+{
+    public string? _object { get; set; }
+    public Entry[] entry { get; set; }
+}
 
-    [JsonProperty("status")]
-    public string Status { get; set; }
+public class Entry
+{
+    public string id { get; set; }
+    public int time { get; set; }
+    public Change[] changes { get; set; }
+}
+
+public class Change
+{
+    public Value value { get; set; }
+    public string field { get; set; }
+}
+
+public class Value
+{
+    public string form_id { get; set; }
+    public string leadgen_id { get; set; }
+    public int created_time { get; set; }
+    public string page_id { get; set; }
+    public string? ad_id { get; set; }
+    public string? adgroup_id { get; set; }
 }
